@@ -45,6 +45,7 @@ class BreakReminderApp:
     def __init__(self):
         self.interval = DEFAULT_INTERVAL
         self.running = True
+        self.last_reminded = time.time()
         self.load_config()
         
         self.icon = None
@@ -88,10 +89,6 @@ class BreakReminderApp:
         else:
             args = shlex.split(app_path) + ["--settings"]
             subprocess.Popen(args)
-        
-        # We need to reload config after they close the dialog.
-        # We can poll it or just let the background loop pick it up.
-        # It's easier to just poll the config file for changes in the reminder loop.
 
     def quit_app(self, icon, item):
         self.running = False
@@ -111,8 +108,14 @@ class BreakReminderApp:
         )
         return image
 
+    def get_remaining_time_text(self):
+        elapsed = time.time() - self.last_reminded
+        remaining_seconds = max(0, (self.interval * 60) - elapsed)
+        mins = int(remaining_seconds // 60)
+        secs = int(remaining_seconds % 60)
+        return f"Next break in: {mins}m {secs}s"
+
     def reminder_loop(self):
-        last_reminded = time.time()
         last_config_check = time.time()
         
         while self.running:
@@ -122,10 +125,14 @@ class BreakReminderApp:
             
             # Check for config changes every 2 seconds
             if time.time() - last_config_check > 2:
+                old_interval = self.interval
                 self.load_config()
+                if self.interval != old_interval:
+                    # Reset timer if the user changed the interval
+                    self.last_reminded = time.time()
                 last_config_check = time.time()
                 
-            elapsed_minutes = (time.time() - last_reminded) / 60.0
+            elapsed_minutes = (time.time() - self.last_reminded) / 60.0
             if elapsed_minutes >= self.interval:
                 try:
                     if self.icon is not None:
@@ -135,10 +142,12 @@ class BreakReminderApp:
                         )
                 except Exception as e:
                     print("Error showing notification:", e)
-                last_reminded = time.time()
+                self.last_reminded = time.time()
 
     def run(self):
         menu = pystray.Menu(
+            pystray.MenuItem(lambda item: self.get_remaining_time_text(), lambda icon, item: None),
+            pystray.Menu.SEPARATOR,
             pystray.MenuItem("Settings", self.open_settings),
             pystray.MenuItem("Auto Start with Windows", self.toggle_auto_start, checked=lambda item: self.is_auto_start_enabled()),
             pystray.MenuItem("Quit", self.quit_app)
