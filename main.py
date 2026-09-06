@@ -41,6 +41,25 @@ def show_settings_dialog(current_interval):
         messagebox.showinfo("Settings Saved", f"Reminder interval set to {new_interval} minutes.", parent=root)
     root.destroy()
 
+def show_break_alert(interval):
+    import winsound
+    # Start looping sound
+    winsound.PlaySound("SystemHand", winsound.SND_ALIAS | winsound.SND_LOOP | winsound.SND_ASYNC)
+    
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes('-topmost', True)
+    
+    messagebox.showinfo(
+        "Time for a Break!", 
+        f"You have been working for {interval} minutes. Please take a break, rest your eyes and stretch.", 
+        parent=root
+    )
+    
+    # Stop sound when OK is clicked
+    winsound.PlaySound(None, 0)
+    root.destroy()
+
 class BreakReminderApp:
     def __init__(self):
         self.interval = DEFAULT_INTERVAL
@@ -135,24 +154,28 @@ class BreakReminderApp:
             elapsed_minutes = (time.time() - self.last_reminded) / 60.0
             if elapsed_minutes >= self.interval:
                 try:
-                    if self.icon is not None:
-                        self.icon.notify(
-                            f"You have been working for {self.interval} minutes. Rest your eyes and stretch.",
-                            "Time for a Break!"
-                        )
+                    app_path = get_app_path()
+                    if getattr(sys, 'frozen', False):
+                        args = [app_path, "--alert", str(self.interval)]
+                    else:
+                        args = shlex.split(app_path) + ["--alert", str(self.interval)]
+                    
+                    subprocess.run(args)
                 except Exception as e:
-                    print("Error showing notification:", e)
+                    print("Error showing alert:", e)
                 self.last_reminded = time.time()
 
     def run(self):
-        menu = pystray.Menu(
-            pystray.MenuItem(lambda item: self.get_remaining_time_text(), lambda icon, item: None),
-            pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Settings", self.open_settings),
-            pystray.MenuItem("Auto Start with Windows", self.toggle_auto_start, checked=lambda item: self.is_auto_start_enabled()),
-            pystray.MenuItem("Quit", self.quit_app)
-        )
-        self.icon = pystray.Icon("break_reminder", self.create_image(), "Break Reminder", menu)
+        def create_menu():
+            return [
+                pystray.MenuItem(self.get_remaining_time_text(), lambda icon, item: None),
+                pystray.Menu.SEPARATOR,
+                pystray.MenuItem("Settings", self.open_settings),
+                pystray.MenuItem("Auto Start with Windows", self.toggle_auto_start, checked=lambda item: self.is_auto_start_enabled()),
+                pystray.MenuItem("Quit", self.quit_app)
+            ]
+        
+        self.icon = pystray.Icon("break_reminder", self.create_image(), "Break Reminder", pystray.Menu(create_menu))
         self.icon.run()
 
 if __name__ == "__main__":
@@ -166,6 +189,14 @@ if __name__ == "__main__":
             except Exception:
                 pass
         show_settings_dialog(interval)
+    elif len(sys.argv) > 1 and sys.argv[1] == "--alert":
+        interval = DEFAULT_INTERVAL
+        if len(sys.argv) > 2:
+            try:
+                interval = int(sys.argv[2])
+            except ValueError:
+                pass
+        show_break_alert(interval)
     else:
         app = BreakReminderApp()
         app.run()
