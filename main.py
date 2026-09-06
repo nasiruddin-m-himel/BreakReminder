@@ -152,6 +152,17 @@ class BreakReminderApp:
                 last_config_check = time.time()
                 
             elapsed_minutes = (time.time() - self.last_reminded) / 60.0
+            
+            # Update hover tooltip and menu (if OS supports live updates)
+            if self.icon is not None:
+                try:
+                    self.icon.title = self.get_remaining_time_text()
+                    # Force menu to refresh so next time it's opened it's definitely fresh
+                    # On some versions of Windows this might even update it live!
+                    self.icon.update_menu()
+                except Exception:
+                    pass
+            
             if elapsed_minutes >= self.interval:
                 try:
                     app_path = get_app_path()
