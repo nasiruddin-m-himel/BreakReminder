@@ -154,7 +154,7 @@ class BreakReminderApp:
         self.icon.run()
 
 if __name__ == "__main__":
-    if len(sys.args) > 1 and sys.argv[1] == "--settings":
+    if len(sys.argv) > 1 and sys.argv[1] == "--settings":
         # We are just showing the settings dialog
         interval = DEFAULT_INTERVAL
         if os.path.exists(CONFIG_FILE):
