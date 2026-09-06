@@ -1,8 +1,7 @@
 import tkinter as tk
-from tkinter import simpledialog
+from tkinter import simpledialog, messagebox
 import pystray
 from PIL import Image, ImageDraw
-from plyer import notification
 import threading
 import time
 import json
@@ -39,12 +38,7 @@ def show_settings_dialog(current_interval):
         with open(CONFIG_FILE, "w") as f:
             json.dump(config, f)
         
-        notification.notify(
-            title="Settings Saved",
-            message=f"Reminder interval set to {new_interval} minutes.",
-            app_name=APP_NAME,
-            timeout=5
-        )
+        messagebox.showinfo("Settings Saved", f"Reminder interval set to {new_interval} minutes.", parent=root)
     root.destroy()
 
 class BreakReminderApp:
@@ -134,12 +128,11 @@ class BreakReminderApp:
             elapsed_minutes = (time.time() - last_reminded) / 60.0
             if elapsed_minutes >= self.interval:
                 try:
-                    notification.notify(
-                        title="Time for a Break!",
-                        message=f"You have been working for {self.interval} minutes. Rest your eyes and stretch.",
-                        app_name=APP_NAME,
-                        timeout=10
-                    )
+                    if self.icon is not None:
+                        self.icon.notify(
+                            f"You have been working for {self.interval} minutes. Rest your eyes and stretch.",
+                            "Time for a Break!"
+                        )
                 except Exception as e:
                     print("Error showing notification:", e)
                 last_reminded = time.time()
